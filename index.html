@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>โปรเจกต์: สำรวจโรงพยาบาลร้างบางแค</title>
+    <style>
+        /* CSS สำหรับสร้างบรรยากาศหลอน */
+        body {
+            background-color: #050505; /* ดำเกือบสนิท */
+            color: #00ff00; /* เขียว Terminal */
+            font-family: 'Courier New', Courier, monospace; /* ฟอนต์พิมพ์ดีด */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* เอฟเฟกต์หน้าจอ CRT เก่า */
+        body::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 10;
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+        }
+
+        #game-container {
+            width: 80%;
+            max-width: 800px;
+            height: 80vh;
+            background: rgba(10, 10, 10, 0.9);
+            border: 2px solid #00ff00;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 1;
+        }
+
+        #text-display {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding-right: 10px;
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+
+        /* ปรับแต่ง Scrollbar */
+        #text-display::-webkit-scrollbar { width: 8px; }
+        #text-display::-webkit-scrollbar-track { background: #0a0a0a; }
+        #text-display::-webkit-scrollbar-thumb { background: #00ff00; }
+
+        #choices-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .choice-btn {
+            background: transparent;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 10px 15px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1em;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+
+        .choice-btn:hover {
+            background: #00ff00;
+            color: #050505;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        .choice-btn:focus { outline: none; }
+
+        /* Style สำหรับฉากจบที่ "โหด" */
+        .death-text {
+            color: #ff0000;
+            font-weight: bold;
+            animation: flicker 0.1s infinite;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="text-display">
+        </div>
+    <div id="choices-container">
+        </div>
+</div>
+
+<script>
+    const textDisplay = document.getElementById('text-display');
+    const choicesContainer = document.getElementById('choices-container');
+
+    // ข้อมูลเนื้อเรื่อง (Story Data)
+    const story = {
+        start: {
+            text: "คุณยืนอยู่หน้าประตูเหล็กผุพังของโรงพยาบาลร้างบางแค กลิ่นอับชื้นและสารเคมีเก่าๆ ลอยมาเตะจมูก " +
+                  "ทีมงานคนอื่นหายไปหมดแล้ว เหลือแค่คุณกับกล้องวิดีโอ 1 ตัวที่แบตเตอรี่เหลือ 15% บรรยากาศเงียบสงัด " +
+                  "จนคุณได้ยินเสียงหัวใจตัวเองเต้น",
+            choices: [
+                { text: "ผลักประตูเข้าไปด้านใน", nextScene: 'lobby' },
+                { text: "ตะโกนเรียกชื่อเพื่อน", nextScene: 'shout' },
+                { text: "หันหลังกลับและหนีไปที่รถ", nextScene: 'coward' }
+            ]
+        },
+        shout: {
+            text: "คุณตะโกนเรียกชื่อ 'เอ' และ 'บี' เสียงของคุณสะท้อนก้องไปตามทางเดินมืดๆ... " +
+                  "แต่ไม่มีเสียงตอบรับ มีเพียงเสียงคล้ายบางอย่างลากพื้นเบาๆ มาจากด้านบน",
+            choices: [
+                { text: "รีบเดินเข้าไปดูที่มาของเสียง", nextScene: 'stairs' },
+                { text: "ตัดสินใจถอยกลับไปตั้งหลักที่ประตู", nextScene: 'start' }
+            ]
+        },
+        lobby: {
+            text: "ประตูเปิดออกเสียงดังเอี๊ยด คุณก้าวเข้าไปในล็อบบี้ ฝุ่นหนาเตอะปกคลุมทุกอย่าง " +
+                  "แสงไฟจากไฟฉายของคุณจับไปโดนรถเข็นคนไข้ที่ตั้งอยู่กลางห้อง... มันดูเหมือนเพิ่งถูกเลื่อนมา",
+            choices: [
+                { text: "เดินไปสำรวจรถเข็น", nextScene: 'wheelchair' },
+                { text: "เดินเลี่ยงไปทางห้องฉุกเฉิน", nextScene: 'er_room' }
+            ]
+        },
+        wheelchair: {
+            text: "คุณเดินเข้าไปใกล้รถเข็น ในขณะที่กำลังจะยื่นมือไปแตะ ล้อรถเข็นก็หมุนเองอย่างรวดเร็ว! " +
+                  "มันพุ่งเข้าหาคุณ!",
+            choices: [
+                { text: "กระโดดหลบ", nextScene: 'safe_lobby' },
+                { text: "ใช้กล้องฟาด", nextScene: 'broken_camera' }
+            ]
+        },
+        // ฉากจบ (Endpoints)
+        broken_camera: {
+            text: "<span class='death-text'>[LOG_ERROR]: กล้องวิดีโอถูกทำลาย " +
+                  "มีบางอย่างคว้าแขนคุณไว้ มันแรงเยอะมาก... แรงจนกระดูกแตก " +
+                  "สิ่งสุดท้ายที่คุณเห็นคือใบหน้าที่ไม่มีตาปาก...</span>",
+            choices: [
+                { text: "ลองใหม่อีกครั้ง...", nextScene: 'start' }
+            ]
+        },
+        coward: {
+            text: "คุณตัดสินใจว่าชีวิตสำคัญกว่าเกม หันหลังกลับและวิ่งไปที่รถ " +
+                  "แต่เมื่อถึงรถ คุณกลับพบว่ากุญแจรถหายไป... " +
+                  "และเมื่อหันกลับไปมองโรงพยาบาล คุณเห็นใครบางคนยืนโบกมืออยู่ที่หน้าต่างชั้น 3",
+            choices: [
+                { text: "ลองใหม่อีกครั้ง...", nextScene: 'start' }
+            ]
+        },
+        stairs: {
+            text: "คุณเดินขึ้นบันไดไป เสียงลากยังคงดังอยู่... เมื่อถึงชั้น 2 " +
+                  "คุณพบเสื้อแจ็คเก็ตของ 'เอ' ตกอยู่ มันเปื้อนไปด้วยของเหลวสีดำเหนียวหนะ",
+            choices: [
+                { text: "ตามรอยของเหลวไป", nextScene: 'morgue' },
+                { text: "วิ่งหนีลงมาทันที", nextScene: 'lobby' }
+            ]
+        },
+        // คุณสามารถเพิ่มฉากอื่นๆ ตรงนี้ได้
+    };
+
+    // ฟังก์ชันสำหรับพิมพ์ข้อความทีละตัว (Typing Effect)
+    function typeWriter(text, i, fnCallback) {
+        if (i < text.length) {
+            textDisplay.innerHTML = text.substring(0, i+1) + '<span aria-hidden="true">_</span>';
+            setTimeout(function() {
+                typeWriter(text, i + 1, fnCallback)
+            }, 30); // ความเร็วในการพิมพ์ (ms)
+        } else if (typeof fnCallback == 'function') {
+            textDisplay.innerHTML = text; // เอา Cursor ออก
+            fnCallback();
+        }
+    }
+
+    // ฟังก์ชันหลักในการเปลี่ยนฉาก
+    function showScene(sceneId) {
+        const scene = story[sceneId];
+        if (!scene) {
+            console.error(`Scene not found: ${sceneId}`);
+            return;
+        }
+
+        // เคลียร์ปุ่มเก่า
+        choicesContainer.innerHTML = '';
+
+        // พิมพ์ข้อความ
+        typeWriter(scene.text, 0, () => {
+            // พิมพ์จบแล้วค่อยแสดงปุ่มทางเลือก
+            scene.choices.forEach(choice => {
+                const button = document.createElement('button');
+                button.innerText = `> ${choice.text}`;
+                button.className = 'choice-btn';
+                button.addEventListener('click', () => showScene(choice.nextScene));
+                choicesContainer.appendChild(button);
+            });
+        });
+    }
+
+    // เริ่มเกม
+    showScene('start');
+
+</script>
+
+</body>
+</html>
