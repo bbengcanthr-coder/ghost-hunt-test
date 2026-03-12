@@ -3,232 +3,252 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ค่ายธรรมะอาถรรพ์ - วัดศรีปัญญาธรรมาราม</title>
+    <title>ค่ายธรรมะมรณะ: วัดศรีปัญญาธรรมาราม</title>
     <style>
+        :root {
+            --blood-red: #660000;
+            --ghost-green: #003300;
+            --terminal-green: #00ff41;
+        }
+
         body {
             background-color: #000;
-            color: #d4d4d4;
-            font-family: 'Courier New', Courier, Tahoma, sans-serif;
+            color: #d1d1d1;
+            font-family: 'Sarabun', 'Courier New', serif;
+            margin: 0;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            margin: 0;
             overflow: hidden;
         }
 
-        /* เอฟเฟกต์บรรยากาศมืดมน */
-        #game-screen {
-            width: 90%;
-            max-width: 700px;
-            background: linear-gradient(180deg, #0a0a0a 0%, #000 100%);
-            border: 1px solid #444;
-            padding: 30px;
-            box-shadow: 0 0 50px rgba(255, 0, 0, 0.05);
-            position: relative;
+        /* Overlay เอฟเฟกต์ฟิล์มเก่า */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 20%, black 150%);
+            pointer-events: none;
+            z-index: 10;
         }
 
-        #status-bar {
-            font-size: 0.8em;
-            color: #888;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #333;
-            padding-bottom: 10px;
+        #game-box {
+            width: 90%;
+            max-width: 700px;
+            height: 80vh;
+            border: 1px solid #333;
+            background: rgba(10, 10, 10, 0.95);
+            padding: 30px;
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
+            box-shadow: 0 0 50px rgba(0,0,0,1);
+            position: relative;
+            z-index: 5;
+        }
+
+        #header {
+            font-size: 0.8em;
+            color: #555;
+            border-bottom: 1px solid #222;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
 
         #text-area {
-            min-height: 200px;
-            font-size: 1.1em;
+            flex-grow: 1;
+            font-size: 1.2em;
             line-height: 1.8;
-            margin-bottom: 30px;
+            overflow-y: auto;
+            margin-bottom: 20px;
         }
 
-        #choices-area {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+        #choices {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
         }
 
-        .choice-btn {
-            background: none;
-            border: 1px solid #555;
+        .btn {
+            background: transparent;
+            border: 1px solid #444;
             color: #aaa;
-            padding: 12px;
-            text-align: left;
+            padding: 15px;
             cursor: pointer;
+            text-align: left;
+            font-size: 1em;
             transition: 0.3s;
-            font-family: inherit;
         }
 
-        .choice-btn:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: #fff;
-            color: #fff;
-            padding-left: 20px;
+        .btn:hover {
+            border-color: var(--blood-red);
+            color: white;
+            background: rgba(102, 0, 0, 0.1);
+            padding-left: 25px;
         }
 
-        .highlight { color: #ff3333; font-weight: bold; }
-        .location { color: #cc99ff; font-style: italic; }
+        .highlight { color: var(--blood-red); font-weight: bold; }
+        
+        /* สั่นเมื่อเจอผี */
+        .shake {
+            animation: shake 0.5s;
+        }
 
-        /* กราฟิกสยองขวัญเล็กน้อย */
-        #vignette {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle, transparent 40%, black 150%);
-            pointer-events: none;
-            z-index: 10;
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            50% { transform: translate(-1px, 2px) rotate(1deg); }
+            100% { transform: translate(1px, 1px) rotate(0deg); }
         }
     </style>
 </head>
 <body>
 
-<div id="vignette"></div>
+<div class="overlay"></div>
 
-<div id="game-screen">
-    <div id="status-bar">
-        <span>📍 <span id="loc-name">ทางเข้าวัด</span></span>
-        <span>ความกลัว: <span id="fear-level">ต่ำ</span></span>
-    </div>
-    
-    <div id="text-area">
-        </div>
-
-    <div id="choices-area">
-        </div>
+<div id="game-box">
+    <div id="header">ปากคลองวิทยาคม | บันทึกการเข้าค่าย | ภาคอีสาน</div>
+    <div id="text-area"></div>
+    <div id="choices"></div>
 </div>
+
+<audio id="sfx-click" src="https://www.soundjays.com/button/button-50.mp3"></audio>
+<audio id="sfx-ghost" src="https://www.soundice.com/static/sound/scream.mp3"></audio>
+<audio id="sfx-ambient" src="https://www.soundjay.com/nature/rain-01.mp3" loop></audio>
 
 <script>
     const textArea = document.getElementById('text-area');
-    const choicesArea = document.getElementById('choices-area');
-    const locName = document.getElementById('loc-name');
-    const fearLevel = document.getElementById('fear-level');
+    const choicesArea = document.getElementById('choices');
+    const gameBox = document.getElementById('game-box');
 
-    const story = {
-        start: {
-            loc: "วัดศรีปัญญาธรรมาราม - เวลา 19:30 น.",
-            text: "รถทัวร์ของ <span class='highlight'>ม.6 โรงเรียนปากคลองวิทยาคม</span> จอดสนิทหน้าวัดป่าลึกในขอนแก่น " +
-                  "บรรยากาศรอบวัดมืดสนิท มีเพียงแสงไฟสลัวจากศาลาไม้เก่าๆ ครูบอกว่าที่นี่คือเขตอภัยทาน " +
-                  "แต่เสียงนกแสกที่ร้องขึ้นตอนก้าวลงจากรถทำให้คุณรู้สึกแปลกๆ...",
-            choices: [
-                { text: "เดินตามกลุ่มเพื่อนเข้าศาลา", next: "sala" },
-                { text: "แวะไปเข้าห้องน้ำหลังวัดก่อน", next: "toilet" }
-            ]
-        },
-        sala: {
-            loc: "ศาลาไม้หลังเก่า",
-            text: "ในศาลาเงียบกริบ พระอาจารย์ยังไม่มา ระหว่างที่เพื่อนๆ นั่งสมาธิ " +
-                  "คุณเหลือบไปเห็น <span class='highlight'>หุ่นขี้ผึ้งอดีตเจ้าอาวาส</span> ที่มุมห้อง " +
-                  "ในความมืด... คุณสาบานได้ว่าเห็นลูกตาของหุ่นขี้ผึ้งนั้นขยับมองตามคุณ",
-            choices: [
-                { text: "ก้มหน้าสวดมนต์ ไม่สนใจ", next: "pray" },
-                { text: "จ้องกลับไปเพื่อพิสูจน์", next: "stare" }
-            ]
-        },
-        toilet: {
-            loc: "ทางเดินไปห้องน้ำท้ายวัด",
-            text: "ทางเดินแคบๆ ขนาบด้วยต้นตะเคียนขนาดใหญ่ ไฟฉายในมือเริ่มสั่น " +
-                  "จู่ๆ คุณก็ได้ยินเสียง <span class='highlight'>'ครืด... ครืด...'</span> เหมือนคนลากฝีเท้าตามหลัง " +
-                  "พอกดไฟฉายส่องไป กลับพบเพียงความว่างเปล่า",
-            choices: [
-                { text: "รีบวิ่งเข้าห้องน้ำแล้วล็อคประตู", next: "toilet_lock" },
-                { text: "หันหลังวิ่งกลับไปที่ศาลา", next: "sala" }
-            ]
-        },
-        stare: {
-            loc: "หน้าหุ่นขี้ผึ้ง",
-            text: "คุณจ้องเขม็งไปที่ดวงตานั้น... ทันใดนั้น ไฟในศาลาพึ่บพับดับลง! " +
-                  "คุณรู้สึกถึง <span class='highlight'>ลมหายใจเย็นเฉียบ</span> ที่รดต้นคอ " +
-                  "และเสียงกระซิบเบาๆ ว่า 'มาทำไม...'",
-            choices: [
-                { text: "ตะโกนเรียกชื่อเพื่อนข้างๆ", next: "dark_sala" },
-                { text: "พยายามคลำทางหาประตูทางออก", next: "exit_run" }
-            ]
-        },
-        toilet_lock: {
-            loc: "ข้างในห้องน้ำเก่า",
-            text: "คุณล็อคกลอนไม้ดังปัง! หอบหายใจแรง ทันใดนั้นมีเสียงเคาะประตู " +
-                  "<span class='highlight'>ก๊อก... ก๊อก... ก๊อก...</span> " +
-                  "ตามด้วยเสียงเพื่อนที่ชื่อ 'บอย' เรียกข้างนอก 'เปิดหน่อย... เราปวดหัว...'",
-            choices: [
-                { text: "เปิดประตูให้บอย", next: "open_door" },
-                { text: "เงียบไว้ (บอยนอนอยู่บนรถนิ...)", next: "stay_quiet" }
-            ]
-        },
-        stay_quiet: {
-            loc: "ข้างในห้องน้ำเก่า",
-            text: "คุณนึกขึ้นได้ว่า 'บอย' ลาป่วยไม่ได้มาค่ายครั้งนี้! " +
-                  "เสียงเคาะเปลี่ยนเป็นเสียง <span class='highlight'>ข่วนประตู</span> แรงขึ้นเรื่อยๆ " +
-                  "และมีของเหลวสีคล้ำไหลซึมเข้ามาใต้ช่องประตู...",
-            choices: [
-                { text: "ปีนช่องลมหนีออกไปข้างหลัง", next: "forest_escape" }
-            ]
-        },
-        forest_escape: {
-            loc: "ป่าหลังวัด",
-            text: "คุณตะเกียกตะกายออกมาได้ แต่กลับหลงเข้ามาในดงเจดีย์เก็บอัฐิ " +
-                  "แสงจันทร์ส่องให้เห็นเงาร่างสีขาวซีดนั่งยงโย่อยู่บนยอดเจดีย์หนึ่งในนั้น " +
-                  "มันกำลังก้มลงมองคุณด้วยใบหน้าที่ <span class='highlight'>ไม่มีริมฝีปาก!</span>",
-            choices: [
-                { text: "วิ่งแบบไม่คิดชีวิตกลับไปที่รถทัวร์", next: "bus_safety" }
-            ]
-        },
-        bus_safety: {
-            loc: "หน้าประตูวัด",
-            text: "คุณวิ่งมาถึงหน้าวัด พบเพื่อนๆ และครูกำลังยืนล้อมวงกัน " +
-                  "ทุกคนหันมามองคุณด้วยสายตาที่ว่างเปล่า... ครูพูดขึ้นว่า " +
-                  "'ไปไหนมา... <span class='highlight'>ทำไมหน้าซีดเหมือนคนตายแบบนั้นล่ะ?</span>'",
-            choices: [
-                { text: "จบการสำรวจ (รอดชีวิต?)", next: "start" }
-            ]
-        },
-        // เพิ่มฉากอื่นๆ ตามต้องการ
-    };
-
-    function typeWriter(text, i, fnCallback) {
-        if (i < text.length) {
-            textArea.innerHTML = text.substring(0, i+1) + '<span style="color:white">|</span>';
-            setTimeout(() => typeWriter(text, i + 1, fnCallback), 25);
-        } else if (typeof fnCallback == 'function') {
-            textArea.innerHTML = text;
-            fnCallback();
+    // ฟังก์ชันเล่นเสียง
+    function playSound(id) {
+        const sound = document.getElementById(id);
+        if (sound) {
+            sound.currentTime = 0;
+            sound.play().catch(e => console.log("เสียงต้องมีการคลิกก่อนถึงจะเล่นได้"));
         }
     }
 
-    function showScene(sceneId) {
-        const scene = story[sceneId];
-        locName.innerText = scene.loc;
-        choicesArea.innerHTML = '';
+    const story = {
+        start: {
+            text: "เวลา 02:45 น. ณ <span class='highlight'>วัดศรีปัญญาธรรมาราม</span>... คุณคือ 'หนึ่ง' นักเรียน ม.6 โรงเรียนปากคลองวิทยาคม " +
+                  "ท่ามกลางเสียงสวดมนต์ทำวัตรเช้าที่ควรจะสงบ แต่เพื่อนร่วมกุฏิ 2 คนหายตัวไป " +
+                  "ทิ้งไว้เพียงรอยเท้าเปื้อนโคลนสีแดงข้นลากยาวออกไปทางป่าช้าหลังวัด...",
+            choices: [
+                { text: "เดินตามรอยเท้าไปเงียบๆ คนเดียว", next: "trail" },
+                { text: "ปลุกเพื่อนคนอื่นที่ยังหลับอยู่", next: "wake_up" }
+            ],
+            sfx: "sfx-ambient"
+        },
+        trail: {
+            text: "คุณคว้าไฟฉายเดินตามรอยไปจนถึงศาลาเก่าที่กำลังบูรณะ " +
+                  "กลิ่นเหม็นเน่าเหมือนซากสัตว์ลอยมาปะทะหน้า " +
+                  "ทันใดนั้น! ไฟฉายของคุณก็เริ่มกระพริบ... คุณเห็นเงาตะคุ่มนั่งยงโย่อยู่บนยอดขื่อศาลา",
+            choices: [
+                { text: "ส่องไฟขึ้นไปดูชัดๆ", next: "look_up" },
+                { text: "แกล้งทำเป็นไม่เห็นแล้วรีบเดินเลี่ยงไปทางโบสถ์", next: "church" }
+            ]
+        },
+        wake_up: {
+            text: "คุณพยายามเขย่าตัวเพื่อนในกุฏิ แต่ทุกคนแข็งทื่อเหมือนหิน " +
+                  "เมื่อพลิกตัวเพื่อนดู พบว่าที่ปากของทุกคนมี <span class='highlight'>เหรียญบาทเก่าๆ</span> อุดอยู่ " +
+                  "เสียงกระซิบข้างหูดังขึ้น: 'อย่าปลุก... พวกเขากำลังเดินทาง'",
+            choices: [
+                { text: "วิ่งหนีออกจากกุฏิไปหาพระอาจารย์", next: "monk" },
+                { text: "พยายามดึงเหรียญออกจากปากเพื่อน", next: "pull_coin" }
+            ]
+        },
+        look_up: {
+            text: "แสงไฟจับใบหน้าที่ขาวซีด ดวงตาเหลือกถลนไร้ตาดำ " +
+                  "มันไม่ใช่คน! มันคือ 'ผีเปรต' ที่พยายามเอื้อมมือยาวๆ ลงมาหาคุณ " +
+                  "คุณสะดุดล้มลงขยับไม่ได้!",
+            choices: [
+                { text: "หลับตาแล้วสวดมนต์บทที่พระเพิ่งสอน", next: "pray" },
+                { text: "คลานหนีเข้าไปในใต้ถุนศาลา", next: "under_shrine" }
+            ],
+            shake: true
+        },
+        church: {
+            text: "คุณเดินมาถึงหน้าโบสถ์ไม้เก่า เห็นพระอาจารย์ยืนหันหลังให้ " +
+                  "แต่พระอาจารย์ดูแปลกไป... ท่านดูสูงผิดปกติ และแขนของท่านยาวจนเกือบถึงเข่า",
+            choices: [
+                { text: "เรียกพระอาจารย์ให้ช่วย", next: "call_monk" },
+                { text: "หมอบลงในพุ่มไม้ไม่ให้ท่านเห็น", next: "hide" }
+            ]
+        },
+        pray: {
+            text: "คุณหลับตาปี๋ สวดมนต์ผิดๆ ถูกๆ " +
+                  "เสียงหัวเราะแหลมเล็กดังลั่นป่าช้า... 'สวดผิดแล้วไอ้หนู...' " +
+                  "เมื่อลืมตาขึ้น ทุกอย่างกลับสู่ความเงียบ แต่รอยนิ้วมือห้ากรงเล็บปรากฏชัดบนแขนของคุณ!",
+            choices: [
+                { text: "วิ่งกลับกุฏิโดยไม่หันหลังมอง", next: "final_run" }
+            ]
+        },
+        final_run: {
+            text: "คุณวิ่งสุดชีวิตจนถึงกุฏิ แสงอาทิตย์เริ่มรำไร " +
+                  "เพื่อนๆ ทุกคนตื่นขึ้นมาทำวัตรเช้าตามปกติเหมือนไม่มีอะไรเกิดขึ้น " +
+                  "ยกเว้น... รอยนิ้วมือบนแขนคุณที่ค่อยๆ เปลี่ยนเป็นสีเขียวคล้ำ และเพื่อนที่หายไป 2 คน กลับมาพร้อมรอยยิ้มที่ปากฉีกถึงใบหู",
+            choices: [
+                { text: "จบเหตุการณ์คืนแรก (เริ่มใหม่)", next: "start" }
+            ]
+        }
+    };
 
-        typeWriter(scene.text, 0, () => {
-            scene.choices.forEach(choice => {
-                const btn = document.createElement('button');
-                btn.className = 'choice-btn';
-                btn.innerText = `> ${choice.text}`;
-                btn.onclick = () => {
-                    updateFear(sceneId);
-                    showScene(choice.next);
-                };
-                choicesArea.appendChild(btn);
-            });
+    function renderScene(sceneKey) {
+        const scene = story[sceneKey];
+        
+        // เล่นเสียง Effect
+        if (scene.sfx) playSound(scene.sfx);
+        else playSound('sfx-click');
+
+        // สั่นหน้าจอ
+        if (scene.shake) {
+            gameBox.classList.add('shake');
+            playSound('sfx-ghost');
+            setTimeout(() => gameBox.classList.remove('shake'), 500);
+        }
+
+        // แสดงข้อความ
+        textArea.innerHTML = "";
+        let i = 0;
+        const speed = 40; 
+        
+        function typeWriter() {
+            if (i < scene.text.length) {
+                if (scene.text.charAt(i) === '<') {
+                    // หาแท็กปิด
+                    let tagEnd = scene.text.indexOf('>', i);
+                    textArea.innerHTML += scene.text.substring(i, tagEnd + 1);
+                    i = tagEnd + 1;
+                } else {
+                    textArea.innerHTML += scene.text.charAt(i);
+                    i++;
+                }
+                setTimeout(typeWriter, speed);
+            } else {
+                renderChoices(scene.choices);
+            }
+        }
+        typeWriter();
+    }
+
+    function renderChoices(choices) {
+        choicesArea.innerHTML = "";
+        choices.forEach(c => {
+            const button = document.createElement('button');
+            button.className = 'btn';
+            button.innerHTML = `[เลือก] ${c.text}`;
+            button.onclick = () => renderScene(c.next);
+            choicesArea.appendChild(button);
         });
     }
 
-    function updateFear(id) {
-        const levels = ["ต่ำ", "ปานกลาง", "สูง", "ขีดสุด"];
-        // เพิ่มระบบสุ่มค่าความกลัวเพื่อให้ดูสมจริง
-        if(id === 'stare' || id === 'stay_quiet') fearLevel.innerText = "สูง";
-        else if(id === 'forest_escape') fearLevel.innerText = "ขีดสุด";
-    }
-
     // เริ่มเกม
-    showScene('start');
-</script>
+    renderScene('start');
 
-</body>
-</html>
 </script>
-
 </body>
 </html>
